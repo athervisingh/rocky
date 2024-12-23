@@ -1,101 +1,113 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+import { useState } from 'react';
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+export default function DonatePage() {
+    const [loading, setLoading] = useState(false);
+    const [amount, setAmount] = useState('');
+
+    const handlePayment = async () => {
+        if (!amount || isNaN(amount) || amount <= 0) {
+            alert('Please enter a valid donation amount.');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            // Step 1: Create an order
+            const response = await fetch('/api/create-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ amount, currency: 'INR', receipt: 'donation_receipt#1' }),
+            });
+
+            const order = await response.json();
+
+            // Step 2: Load Razorpay Checkout script
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => {
+                // Step 3: Open Razorpay Checkout
+                const options = {
+                    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // Add this to your .env.local file
+                    amount: order.amount,
+                    currency: order.currency,
+                    name: 'Animal Care Donations',
+                    description: 'Donation for Animal Welfare',
+                    order_id: order.id,
+                    handler: function (response) {
+                        console.log('Payment successful', response);
+                        alert('Thank you for your donation!');
+                    },
+                    prefill: {
+                        name: '',
+                        email: '',
+                        contact: '',
+                    },
+                    notes: {
+                        purpose: 'Donation for Animal Welfare',
+                    },
+                    theme: {
+                        color: '#228B22', // Green color theme
+                    },
+                };
+
+                const razorpay = new Razorpay(options);
+                razorpay.open();
+            };
+            script.onerror = () => {
+                alert('Failed to load Razorpay SDK. Please try again.');
+            };
+setAmount('')
+            document.body.appendChild(script);
+        } catch (error) {
+          setAmount('')
+            console.error('Payment failed', error);
+            alert('Something went wrong. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <h1>Donate for Animal Welfare</h1>
+            <p>Your contribution helps us take care of animals in need.</p>
+            <div style={{ margin: '1rem 0' }}>
+                <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    style={{
+                        padding: '0.5rem',
+                        fontSize: '1rem',
+                        borderRadius: '5px',
+                        border: '1px solid #ccc',
+                        width: '200px',
+                        marginRight: '1rem',
+                    }}
+                />
+                <button
+                    onClick={handlePayment}
+                    disabled={loading}
+                    style={{
+                        padding: '0.5rem 1rem',
+                        backgroundColor: '#228B22',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '1rem',
+                        cursor: 'pointer',
+                        opacity: loading ? 0.7 : 1,
+                    }}
+                >
+                    {loading ? 'Processing...' : 'Donate Now'}
+                </button>
+            </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    );
 }
